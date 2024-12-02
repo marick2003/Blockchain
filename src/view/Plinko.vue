@@ -1,5 +1,9 @@
 <template>
+    <div class="side" >
+        
+    </div>
     <div class="plinko-container">
+        <button> rest </button>
       <canvas ref="canvas" class="game-canvas"></canvas>
     </div>
   </template>
@@ -12,7 +16,7 @@
   
   onMounted(() => {
     const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
-  
+
     // 基本設定
     const WIDTH = 800;
     const HEIGHT = 600;
@@ -24,7 +28,7 @@
       canvas: canvas.value as HTMLCanvasElement,
       engine: engine,
       options: {
-        width: WIDTH,
+        width: WIDTH-80,
         height: HEIGHT,
         background: "#0f1728",
         wireframes: false,
@@ -45,17 +49,17 @@
     ];
     Composite.add(world, walls);
   
-    // **放置釘子**
-    const pinRadius = 5;
-    const rows = 10;
-    const cols = 8;
+    // **放置釘子 - 三角形排列**
+    const pinRadius = 10;
+    const rows = 8;
     const pinSpacing = 70;
+    const triangleHeight = Math.sqrt(3) / 2;
   
     for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const xOffset = row % 2 === 0 ? pinSpacing / 2 : 0; // 錯位排列
-        const x = col * pinSpacing + xOffset + 100;
-        const y = row * pinSpacing + 50;
+      for (let col = 0; col < 3 + row; col++) { // 第一行 3 個，逐行遞增
+        const xOffset = -row * (pinSpacing / 2); // 向左偏移每行釘子的排列
+        const x = col * pinSpacing + xOffset + WIDTH / 2 - 1.5 * pinSpacing; // 調整初始位置使排列居中
+        const y = row * pinSpacing * triangleHeight + 40; // 垂直方向位置
   
         const pin = Bodies.circle(x, y, pinRadius, {
           isStatic: true,
@@ -68,7 +72,7 @@
     }
   
     // **放置分區**
-    const binCount = cols + 1;
+    const binCount = rows + 1;
     const binWidth = WIDTH / binCount;
   
     for (let i = 0; i < binCount; i++) {
@@ -86,7 +90,22 @@
       );
       Composite.add(world, bin);
     }
-  
+    // **放置感應區
+    const sensor = Bodies.rectangle(
+    WIDTH / 2,
+    HEIGHT - 10,
+    WIDTH,
+    10,
+    {
+        isStatic: true,
+        isSensor: true,
+        render: {
+        visible: false,
+        },
+    }
+    );
+    Composite.add(world, sensor);
+
     // **點擊添加球體**
     const ballRadius = 10;
     const addBall = (x: number) => {
@@ -117,7 +136,20 @@
         }
       });
     });
-  
+    Events.on(engine, "collisionStart", ({ pairs }) => {
+    pairs.forEach(({ bodyA, bodyB }) => {
+        if (bodyA === sensor || bodyB === sensor) {
+        const ball = bodyA === sensor ? bodyB : bodyA;
+        handleBallEnterBin(ball);
+        }
+    });
+    });
+    const handleBallEnterBin=(ball)=>{
+        const x = ball.position.x;
+        const binIndex = Math.floor(x / binWidth);
+        console.log(`Ball entered bin: ${binIndex}`);
+        Composite.remove(world, ball);
+    }
     onUnmounted(() => {
       Render.stop(render);
       Runner.stop(runner);

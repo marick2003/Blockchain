@@ -12,7 +12,7 @@
                             >
                                 手动投注
                             </button>
-                            <button
+                            <button disabled
                                 @click="betType = 1"
                                 :class="betType === 1 ? 'bg-blue-500 text-white' : 'bg-gray-400 text-black'"
                                 class="rounded-full px-4 py-2  mx-2"
@@ -98,16 +98,17 @@
                                 </div>
                                 <div class=" rounded-full border-[14px] border-gray-600 px-2">
 
-                                
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    step="1"
-                                    v-model="sliderValue"
-                                    class="w-full mt-1 sliderBar"
-                                    @input="()=>{audioStore.playSound('tickdrag')}"
-                                />
+                                <div class="range  ">
+                                    <!-- <div class="lower bg-green-500 h-2 w-full absolute top-0 right-0 "></div>
+                                    <div class="highter bg-red-500 h-2 absolute  top-0 left-0 " :style="{ width: `${sliderValue}%` }"></div> -->
+                               
+                                    <el-slider
+                    v-model="sliderValue"
+                    :min="0"
+                    :max="100"
+                    @input="()=>{audioStore.playSound('tickdrag')}"
+                />
+                                </div>
                             </div>
                             </div>
                         </div>
@@ -158,13 +159,14 @@ const diceResult = ref(0);
 const historyBet = ref([]);
 const betType=ref(0); //0 是手動下注  1是自動下注
 const audioStore = useAudioStore();  // 音效控制
+const isPlayBetRound = ref(false)
 // 動態計算
 const calculateValues = () => {
     const position = sliderValue.value;
     // 計算撥大於 (2 ~ 98)
     targetValue.value = Math.round(2 + (position / 100) * (98 - 2));
     // 計算獲勝機率
-    winProbability.value = targetValue.value;
+    winProbability.value = 100 - targetValue.value;
     // 計算乘數 (1.0102 ~ 49.5000)
     multiplier.value = parseFloat((1.0102 + (position / 100) * (49.5 - 1.0102)).toFixed(4));
 };
@@ -190,28 +192,34 @@ const halveBet = () => {
 };
 
 const placeBet = () => {
+    if(isPlayBetRound.value){
+        return false;
+    }
+    isPlayBetRound.value=true;
     // 隨機生成水平移動的百分比（0~100%）
     diceResult.value = Math.round(Math.random() * 100).toFixed(2);
-
     // 獲取 diceSlide 元素
     const diceSlideElement = diceSlide.value;
     const hideShowElement = diceSlideElement.querySelector(".hide-show"); // 子層元素
-
     if (diceSlideElement && hideShowElement) {
         // 確保從 0% 開始
-        hideShowElement.classList.remove("is-hidden");
-
         // 短暫延遲，讓動畫從 0% 開始執行
         setTimeout(() => {
             // 設置隨機水平移動
             diceSlideElement.style.transform = `translateX(${diceResult.value}%)`;
         }, 50); // 小延遲以觸發動畫
         audioStore.playSound('rolling')
+        hideShowElement.classList.add("fade-in-scale-down"); // 移除動畫 class
+        hideShowElement.classList.remove("is-hidden");
         // 延遲 3 秒後加回 is-hidden class
         setTimeout(() => {
-            hideShowElement.classList.add("is-hidden");
-            diceSlideElement.style.transform = `translateX(0%)`;
-        }, 5000);
+            hideShowElement.classList.add("is-hidden"); // 最後隱藏元素
+            setTimeout(() => {
+                hideShowElement.classList.remove("fade-in-scale-down"); // 移除動畫 class
+                diceSlideElement.style.transform = `translateX(0%)`; // 重置位置
+                isPlayBetRound.value=false;
+            }, 1000); 
+        }, 3000);
         // 新增投注記錄
         historyBet.value.unshift({ targetValue: sliderValue.value, diceResult: diceResult.value ,state: diceResult.value >= sliderValue.value ? 0 : 1  });
         // 結果
@@ -328,6 +336,7 @@ const placeBet = () => {
         .translate-x {
             position: absolute;
             display: flex;
+            padding: 0 25px;
             bottom: 50%;
             left: 0;
             right: 0;
@@ -350,7 +359,7 @@ const placeBet = () => {
                 filter: drop-shadow(0 0 3px rgba(25, 25, 25, 0.1));
             }
             &.is-hidden {
-                transform: translate(-50%) scale(0.8);
+                transform: translate(-50%) scale(0.5);
                 opacity: 0;
             }
             .dice-result {
@@ -366,7 +375,7 @@ const placeBet = () => {
         border-radius: 20px;
         background: #ccc;
         text-align: left;
-        padding: 5px;
+        padding: 5px 0;
        // margin: 0.7em 0;
       //  box-shadow: 0 4px 6px -1px rgba(27, 23, 23, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.12);
     }
@@ -443,7 +452,7 @@ h2 {
 .past-bets > *:nth-child(odd) {
     animation-name: slideOdd;
 }
-.past-bets > *:last-child {
+.past-bets > *:last-child:not(:only-child) {
     animation-name: slideOut;
 }
 @keyframes slideOdd {
@@ -468,5 +477,22 @@ h2 {
         opacity: 0;
         pointer-events: none;
     }
+}
+.fade-in-scale-down{
+    transform: scale(0.5); /* 縮小 */
+    transition: all 500ms ease; /* 1 秒的過渡效果 */
+}
+.fade-out-scale-down {
+    opacity: 0; /* 淡出 */
+    transform: scale(0.5); /* 縮小 */
+    transition: all 1s ease; /* 1 秒的過渡效果 */
+}
+
+.el-slider{
+    --el-slider-main-bg-color: red;
+    --el-slider-runway-bg-color: green;
+}
+:deep(.el-slider__button){
+    --el-slider-main-bg-color: green;
 }
 </style>

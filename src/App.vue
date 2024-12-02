@@ -1,17 +1,14 @@
 <script setup>
 import HelloWorld from './components/HelloWorld.vue'
 import DiceGame from './view/Dice.vue'
-
-import Plinko from './view/Plinko.vue'
+import Mydialog from '@/components/dialog/index.vue'
 </script>
 
 <template>
-  <!-- <DiceGame>
+  <Mydialog ></Mydialog>
+  <DiceGame>
     
-  </DiceGame> -->
-  <Plinko>
-    
-  </Plinko>
+  </DiceGame>
 </template>
 
 <style scoped>
